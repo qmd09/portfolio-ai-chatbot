@@ -11,9 +11,13 @@ if (!process.env.ANTHROPIC_API_KEY) {
 }
 
 const app = express()
-const PORT = 3001
+const PORT = process.env.PORT ?? 3001
 
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5177'] }))
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:5173', 'http://localhost:5177']
+
+app.use(cors({ origin: ALLOWED_ORIGINS }))
 app.use(express.json())
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
