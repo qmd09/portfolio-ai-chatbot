@@ -69,7 +69,7 @@ white-label storefront with React and Vue frontends sharing a single GraphQL API
 production-grade test framework: UI tests, API tests, visual regression, GitHub Actions CI with HTML report artifacts. Page Object Model architecture.
 
 ### AI Portfolio Assistant (this chat)
-powered by Anthropic API, streamed via AWS Lambda, conversation history in Firebase.
+floating chat widget built with React and TypeScript, powered by Anthropic API (claude-sonnet-4-6), streamed via an Express proxy on Railway. visitor data recorded to AWS DynamoDB.
 
 ### DevLens Toolbar (planned)
 pixel ruler, spacing inspector, design overlay, font inspector injected into any React app via env flag. Chrome extension version also planned.
