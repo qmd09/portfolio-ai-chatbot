@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit'
 import Anthropic from '@anthropic-ai/sdk'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb'
+import { systemPrompt } from '../constants/systemPrompt.js'
 
 if (!process.env.ANTHROPIC_API_KEY) {
   throw new Error('ANTHROPIC_API_KEY is not set — copy .env.example to .env and add your key')
@@ -12,6 +13,12 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
+
+// Required so express-rate-limit reads the real visitor IP from the X-Forwarded-For
+// header set by Railway's reverse proxy instead of the proxy's IP.
+// Without this, all requests appear to come from the same IP and either nobody gets
+// rate-limited or everyone does after the first 20 requests.
+app.set('trust proxy', 1)
 
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
@@ -93,9 +100,12 @@ app.use(
 )
 
 app.post('/api/chat', async (req, res) => {
-  const { messages, systemPrompt, visitorName } = req.body as {
+  // systemPrompt is intentionally ignored from the request body — the server
+  // enforces the Alfred persona via the imported constant so no caller can
+  // override it by sending a different system prompt.
+  const { messages, visitorName } = req.body as {
     messages: Message[]
-    systemPrompt: string
+    systemPrompt?: unknown  // accepted in body but never used
     visitorName?: string
   }
 
@@ -123,6 +133,8 @@ app.post('/api/chat', async (req, res) => {
     visitorName && typeof visitorName === 'string'
       ? `${systemPrompt}\n\nThe visitor you are speaking with is named ${visitorName}. Address them by name occasionally to make the conversation feel personal.`
       : systemPrompt
+  // system is derived entirely from the server-side constant above — the client
+  // cannot influence Alfred's persona via the request body
 
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')

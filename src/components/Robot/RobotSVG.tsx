@@ -2,15 +2,17 @@ interface RobotSVGProps {
   onClick?: () => void
   size?: number
   isPulsing?: boolean
+  'aria-label'?: string
 }
 
-export default function RobotSVG({ onClick, size = 56, isPulsing = false }: RobotSVGProps) {
+export default function RobotSVG({ onClick, size = 56, isPulsing = false, 'aria-label': ariaLabel }: RobotSVGProps) {
   const Tag = onClick ? 'button' : 'div'
 
   return (
     <Tag
       onClick={onClick}
       className={isPulsing ? 'robot-pulse' : undefined}
+      aria-label={ariaLabel}
       style={{
         background: 'none',
         border: 'none',

@@ -36,7 +36,7 @@ export default function ChatWidget() {
             transition={{ duration: 0.2 }}
             style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000 }}
           >
-            <RobotSVG onClick={() => setIsOpen(true)} isPulsing />
+            <RobotSVG onClick={() => setIsOpen(true)} isPulsing aria-label="Open Alfred chat" />
           </motion.div>
         )}
       </AnimatePresence>

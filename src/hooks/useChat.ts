@@ -14,8 +14,9 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length * APPROX_TOKENS_PER_CHAR)
 }
 
-// TODO: use import.meta.env.VITE_API_URL for production Lambda endpoint
-const CHAT_ENDPOINT = '/api/chat'
+// Falls back to the relative path so the dev proxy (vite.config.ts) handles it locally.
+// In production, set VITE_API_URL to the Railway or Lambda base URL.
+const CHAT_ENDPOINT = `${import.meta.env.VITE_API_URL ?? ''}/api/chat`
 
 function createWelcomeMessage(visitorName?: string): Message {
   const content = visitorName
@@ -29,6 +30,9 @@ export function useChat(visitorName?: string) {
   const [isStreaming, setIsStreaming] = useState(false)
   const [sessionTokensUsed, setSessionTokensUsed] = useState(0)
   const prevNameRef = useRef<string | undefined>(visitorName)
+  // Holds the controller for any in-flight stream so we can cancel it when
+  // the widget closes or the user navigates away, preventing orphaned API calls.
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // When the visitor gate is completed mid-session, update the welcome message
   useEffect(() => {
@@ -67,11 +71,17 @@ export function useChat(visitorName?: string) {
       setMessages(prev => [...prev, userMessage, assistantMessage])
       setIsStreaming(true)
 
+      // Cancel any previous in-flight request before starting a new one
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       try {
         const response = await fetch(CHAT_ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: conversationHistory, systemPrompt, visitorName }),
+          body: JSON.stringify({ messages: conversationHistory, visitorName }),
+          signal: controller.signal,
         })
 
         if (!response.ok) {
@@ -115,7 +125,10 @@ export function useChat(visitorName?: string) {
 
         const tokensUsed = estimateTokens(content) + estimateTokens(assistantContent)
         setSessionTokensUsed(prev => prev + tokensUsed)
-      } catch {
+      } catch (err) {
+        // AbortError is expected when the user closes the chat mid-stream — not a real error
+        if (err instanceof Error && err.name === 'AbortError') return
+        console.error('[useChat] stream error:', err)
         setMessages(prev => {
           const updated = [...prev]
           updated[updated.length - 1] = {
@@ -126,6 +139,7 @@ export function useChat(visitorName?: string) {
         })
       } finally {
         setIsStreaming(false)
+        abortControllerRef.current = null
       }
     },
     [isStreaming, isSessionLimitReached, messages, visitorName],
